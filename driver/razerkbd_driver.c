@@ -3413,31 +3413,20 @@ static DEVICE_ATTR(charge_colour,           0220, NULL,                         
 static DEVICE_ATTR(charge_low_threshold,    0660, razer_attr_read_charge_low_threshold,       razer_attr_write_charge_low_threshold);
 
 /**
- * Find existing device value index for usb device. If none is found, reserve a new index.
+ * Find existing device data pointer for usb device. If none is found, return NULL;
  */
-static int razer_get_kbd_device_value_index(struct usb_device *usb_dev)
+static void *razer_get_usb_device_data(struct usb_device *usb_dev)
 {
-    int i;
-    // Find existing index for usb device.
-    for (i = 0; i < (sizeof(device_values) / sizeof(struct razer_kbd_device_values)); i++) {
-        if (device_values[i].usb_dev == usb_dev) {
-            return i;
+    struct razer_kbd_usb_device_data *usbdev_data = NULL;
+    struct razer_kbd_usb_device_data *usbdev_data_iterator;
+
+    list_for_each_entry(usbdev_data_iterator, &razer_kbd_devices_list, m_list_head) {
+        if (usbdev_data_iterator->usb_dev == usb_dev) {
+            usbdev_data = usbdev_data_iterator;
         }
     }
 
-    // If none is found, reserve a new index for usb device. Should only be one time per device
-    for (i = 0; i < (sizeof(device_values) / sizeof(struct razer_kbd_device_values)); i++) {
-        if (!device_values[i].usb_dev || (device_values[i].usb_dev->state != USB_STATE_CONFIGURED &&
-                                          device_values[i].usb_dev->state != USB_STATE_SUSPENDED &&
-                                          device_values[i].usb_dev->state != USB_STATE_DEFAULT)) {
-            device_values[i].usb_dev = usb_dev;
-            device_values[i].fn_on = 0x00;
-            return i;
-        }
-    }
-
-    // All device_values are used. Are we using more than 32 Razer keyboards at once?
-    return -1;
+    return usbdev_data;
 }
 
 /**
@@ -3448,8 +3437,8 @@ static int razer_event(struct hid_device *hdev, struct hid_field *field, struct 
     struct razer_kbd_device *device = hid_get_drvdata(hdev);
     const struct razer_key_translation *translation;
 
-    int dev_val_index = razer_get_kbd_device_value_index(device->usb_dev);
-    if (dev_val_index < 0) {
+    struct razer_kbd_usb_device_data *usbdev_data = razer_get_usb_device_data(device->usb_dev);
+    if(usbdev_data == NULL) {
         return 1;
     }
 
@@ -3523,11 +3512,11 @@ static int razer_event(struct hid_device *hdev, struct hid_field *field, struct 
     }
 
     if(translation) {
-        if (test_bit(usage->code, device_values[dev_val_index].pressed_fn) || device_values[dev_val_index].fn_on) {
+        if (test_bit(usage->code, usbdev_data->pressed_fn) || usbdev_data->fn_on) {
             if (value) {
-                set_bit(usage->code, device_values[dev_val_index].pressed_fn);
+                set_bit(usage->code, usbdev_data->pressed_fn);
             } else {
-                clear_bit(usage->code, device_values[dev_val_index].pressed_fn);
+                clear_bit(usage->code, usbdev_data->pressed_fn);
             }
 
             input_event(field->hidinput->input, usage->type, translation->to, value);
@@ -3567,8 +3556,8 @@ static int razer_event(struct hid_device *hdev, struct hid_field *field, struct 
  */
 static int razer_raw_event_standard(struct hid_device *hdev, struct razer_kbd_device *device, struct usb_interface *intf, struct hid_report *report, u8 *data, int size)
 {
-    int dev_val_index = razer_get_kbd_device_value_index(device->usb_dev);
-    if (dev_val_index < 0) {
+    struct razer_kbd_usb_device_data *usbdev_data = razer_get_usb_device_data(device->usb_dev);
+    if(!usbdev_data) {
         return 1;
     }
 
@@ -3644,7 +3633,7 @@ static int razer_raw_event_standard(struct hid_device *hdev, struct razer_kbd_de
             data[index+1] = cur_value;
         }
 
-        device_values[dev_val_index].fn_on = !!found_fn;
+        usbdev_data->fn_on = !!found_fn;
 
         data[0] = 0x01;
         data[1] = 0x00;
@@ -3669,8 +3658,8 @@ static int razer_raw_event_bitfield(struct hid_device *hdev, struct razer_kbd_de
 {
     u8 bitfield[20] = { 0 };
 
-    int dev_val_index = razer_get_kbd_device_value_index(device->usb_dev);
-    if (dev_val_index < 0) {
+    struct razer_kbd_usb_device_data *usbdev_data = razer_get_usb_device_data(device->usb_dev);
+    if(!usbdev_data) {
         return 1;
     }
 
@@ -3798,7 +3787,7 @@ static int razer_raw_event_bitfield(struct hid_device *hdev, struct razer_kbd_de
             }
         }
 
-        device_values[dev_val_index].fn_on = !!found_fn;
+        usbdev_data->fn_on = !!found_fn;
 
         data[0] = 0x01;
         data[1] = 0x00;
@@ -3918,10 +3907,23 @@ static int razer_kbd_probe(struct hid_device *hdev, const struct hid_device_id *
     // Init data
     razer_kbd_init(dev, intf, hdev);
 
-    // Reserve a device value index for usb device
-    if (razer_get_kbd_device_value_index(usb_dev) < 0) {
-        printk(KERN_INFO "razerkbd: Too many devices\n");
-        goto exit_free;
+    // Allocate data in context to the usb device.
+    struct razer_kbd_usb_device_data *usbdev_data = razer_get_usb_device_data(usb_dev);
+    if (usbdev_data == NULL) {
+        usbdev_data = kmalloc(sizeof(struct razer_kbd_usb_device_data), GFP_KERNEL);
+        if(usbdev_data == NULL) {
+            dev_err(&intf->dev, "out of memory\n");
+            return -ENOMEM;
+        }
+
+        usbdev_data->usb_dev = usb_dev;
+        usbdev_data->hid_devices = 1;
+        usbdev_data->fn_on = 0x00;
+
+        INIT_LIST_HEAD(&usbdev_data->m_list_head);
+        list_add_tail(&usbdev_data->m_list_head, &razer_kbd_devices_list);
+    } else {
+        usbdev_data->hid_devices++;
     }
 
     // Other interfaces are actual key-emitting devices
@@ -4424,6 +4426,19 @@ static void razer_kbd_disconnect(struct hid_device *hdev)
     struct razer_kbd_device *dev;
     struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
     struct usb_device *usb_dev = interface_to_usbdev(intf);
+
+    // Free allocated usb device data
+    struct razer_kbd_usb_device_data *usbdev_data, *usbdev_data_tmp;
+    list_for_each_entry_safe(usbdev_data, usbdev_data_tmp, &razer_kbd_devices_list, m_list_head) {
+        if (usbdev_data->usb_dev == usb_dev) {
+            if (usbdev_data->hid_devices > 1) {
+                usbdev_data->hid_devices--;
+            } else {
+                list_del(&usbdev_data->m_list_head);
+                kfree(usbdev_data);
+            }
+        }
+    }
 
     dev = hid_get_drvdata(hdev);
 
