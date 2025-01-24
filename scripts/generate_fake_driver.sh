@@ -126,6 +126,7 @@ declare -A files_metadata=(
     ["channel4_led_brightness"]="rw;0"
     ["channel5_led_brightness"]="rw;0"
     ["channel6_led_brightness"]="rw;0"
+    ["analog_input"]="r;0"
     ["version"]="r;1.0.0"
 )
 
