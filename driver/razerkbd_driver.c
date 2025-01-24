@@ -3897,6 +3897,7 @@ static int razer_kbd_probe(struct hid_device *hdev, const struct hid_device_id *
     struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
     struct usb_device *usb_dev = interface_to_usbdev(intf);
     struct razer_kbd_device *dev = NULL;
+    struct razer_kbd_usb_device_data *usbdev_data = razer_get_usb_device_data(usb_dev);
 
     dev = kzalloc(sizeof(struct razer_kbd_device), GFP_KERNEL);
     if(dev == NULL) {
@@ -3908,7 +3909,6 @@ static int razer_kbd_probe(struct hid_device *hdev, const struct hid_device_id *
     razer_kbd_init(dev, intf, hdev);
 
     // Allocate data in context to the usb device.
-    struct razer_kbd_usb_device_data *usbdev_data = razer_get_usb_device_data(usb_dev);
     if (usbdev_data == NULL) {
         usbdev_data = kmalloc(sizeof(struct razer_kbd_usb_device_data), GFP_KERNEL);
         if(usbdev_data == NULL) {
