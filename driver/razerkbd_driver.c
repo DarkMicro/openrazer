@@ -411,6 +411,23 @@ static int razer_send_payload(struct razer_kbd_device *device, struct razer_repo
 }
 
 /**
+ * Find existing device data pointer for usb device. If none is found, return NULL;
+ */
+static void *razer_get_usb_device_data(struct usb_device *usb_dev)
+{
+    struct razer_kbd_usb_device_data *usbdev_data = NULL;
+    struct razer_kbd_usb_device_data *usbdev_data_iterator;
+
+    list_for_each_entry(usbdev_data_iterator, &razer_kbd_devices_list, m_list_head) {
+        if (usbdev_data_iterator->usb_dev == usb_dev) {
+            usbdev_data = usbdev_data_iterator;
+        }
+    }
+
+    return usbdev_data;
+}
+
+/**
  * Reads the physical layout of the keyboard.
  *
  * Returns a string
@@ -3360,6 +3377,23 @@ static ssize_t razer_attr_read_key_alt_f4(struct device *dev, struct device_attr
     return 1;
 }
 
+static ssize_t razer_attr_read_analog_input_data(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    struct razer_kbd_device *device = dev_get_drvdata(dev);
+    struct razer_kbd_usb_device_data *usbdev_data = razer_get_usb_device_data(device->usb_dev);
+    
+    if(usbdev_data == NULL) {
+        return 0;
+    }
+
+    if(usbdev_data->analog_input_data == NULL) {
+        return 0;
+    }
+
+    memcpy(buf, usbdev_data->analog_input_data, usbdev_data->analog_input_data_size);
+    return usbdev_data->analog_input_data_size;
+}
+
 /**
  * Set up the device driver files
 
@@ -3412,22 +3446,7 @@ static DEVICE_ATTR(charge_effect,           0220, NULL,                         
 static DEVICE_ATTR(charge_colour,           0220, NULL,                                       razer_attr_write_charge_colour);
 static DEVICE_ATTR(charge_low_threshold,    0660, razer_attr_read_charge_low_threshold,       razer_attr_write_charge_low_threshold);
 
-/**
- * Find existing device data pointer for usb device. If none is found, return NULL;
- */
-static void *razer_get_usb_device_data(struct usb_device *usb_dev)
-{
-    struct razer_kbd_usb_device_data *usbdev_data = NULL;
-    struct razer_kbd_usb_device_data *usbdev_data_iterator;
-
-    list_for_each_entry(usbdev_data_iterator, &razer_kbd_devices_list, m_list_head) {
-        if (usbdev_data_iterator->usb_dev == usb_dev) {
-            usbdev_data = usbdev_data_iterator;
-        }
-    }
-
-    return usbdev_data;
-}
+static DEVICE_ATTR(analog_input,            0440, razer_attr_read_analog_input_data,          NULL);
 
 /**
  * Deal with FN toggle
@@ -3812,10 +3831,22 @@ static int razer_raw_event(struct hid_device *hdev, struct hid_report *report, u
 {
     struct razer_kbd_device *device = hid_get_drvdata(hdev);
     struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
+    struct razer_kbd_usb_device_data *usbdev_data = razer_get_usb_device_data(device->usb_dev);
+
+    if(!usbdev_data) {
+        return 1;
+    }
 
     // No translations needed on the Pro...
     if (is_blade_laptop(device)) {
         return 0;
+    }
+
+    // Analog key event starts with one 0x0b. Then one byte as key identifier + u16 input level for each pressed key. The rest is filled with 0x00.
+    if (intf->cur_altsetting->desc.bInterfaceProtocol == USB_INTERFACE_PROTOCOL_KEYBOARD &&
+        size == usbdev_data->analog_input_data_size && data[0] == 0x0b) {
+        memcpy(usbdev_data->analog_input_data, data, size);
+        return 1;
     }
 
     switch (device->usb_pid) {
@@ -3918,6 +3949,23 @@ static int razer_kbd_probe(struct hid_device *hdev, const struct hid_device_id *
 
         usbdev_data->usb_dev = usb_dev;
         usbdev_data->hid_devices = 1;
+
+        switch (usb_dev->descriptor.idProduct) {
+        case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO:
+            usbdev_data->analog_input_data_size = 48;
+            break;
+        default:
+            usbdev_data->analog_input_data_size = 0;
+        }
+
+        if (usbdev_data->analog_input_data_size) {
+            usbdev_data->analog_input_data = kmalloc(usbdev_data->analog_input_data_size, GFP_KERNEL);
+            if(usbdev_data->analog_input_data == NULL) {
+                dev_err(&intf->dev, "out of memory\n");
+                return -ENOMEM;
+            }
+        }
+
         usbdev_data->fn_on = 0x00;
 
         INIT_LIST_HEAD(&usbdev_data->m_list_head);
@@ -4367,6 +4415,7 @@ static int razer_kbd_probe(struct hid_device *hdev, const struct hid_device_id *
             break;
 
         case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO:
+            CREATE_DEVICE_FILE(&hdev->dev, &dev_attr_analog_input);                  // Analog input in driver mode
             CREATE_DEVICE_FILE(&hdev->dev, &dev_attr_matrix_effect_wave);            // Wave effect
             CREATE_DEVICE_FILE(&hdev->dev, &dev_attr_matrix_effect_starlight);       // Starlight effect
             CREATE_DEVICE_FILE(&hdev->dev, &dev_attr_matrix_effect_spectrum);        // Spectrum effect
@@ -4431,10 +4480,16 @@ static void razer_kbd_disconnect(struct hid_device *hdev)
     struct razer_kbd_usb_device_data *usbdev_data, *usbdev_data_tmp;
     list_for_each_entry_safe(usbdev_data, usbdev_data_tmp, &razer_kbd_devices_list, m_list_head) {
         if (usbdev_data->usb_dev == usb_dev) {
+            // Skip until the last hid_device is getting disconnected
             if (usbdev_data->hid_devices > 1) {
                 usbdev_data->hid_devices--;
             } else {
                 list_del(&usbdev_data->m_list_head);
+
+                if (usbdev_data->analog_input_data_size) {
+                    kfree(usbdev_data->analog_input_data);
+                }
+
                 kfree(usbdev_data);
             }
         }
@@ -4883,6 +4938,7 @@ static void razer_kbd_disconnect(struct hid_device *hdev)
             break;
 
         case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO:
+            device_remove_file(&hdev->dev, &dev_attr_analog_input);                  // Analog input
             device_remove_file(&hdev->dev, &dev_attr_matrix_effect_wave);            // Wave effect
             device_remove_file(&hdev->dev, &dev_attr_matrix_effect_starlight);       // Starlight effect
             device_remove_file(&hdev->dev, &dev_attr_matrix_effect_spectrum);        // Spectrum effect
