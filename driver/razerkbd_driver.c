@@ -3381,7 +3381,7 @@ static ssize_t razer_attr_read_analog_input_data(struct device *dev, struct devi
 {
     struct razer_kbd_device *device = dev_get_drvdata(dev);
     struct razer_kbd_usb_device_data *usbdev_data = razer_get_usb_device_data(device->usb_dev);
-    
+
     if(usbdev_data == NULL) {
         return 0;
     }
