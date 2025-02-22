@@ -160,15 +160,24 @@
 #define RAZER_FIREFLY_WAIT_MIN_US 900
 #define RAZER_FIREFLY_WAIT_MAX_US 1000
 
+static LIST_HEAD(razer_kbd_devices_list);
+
+struct razer_kbd_usb_device_data {
+    struct usb_device *usb_dev;
+    unsigned int hid_devices;
+
+    unsigned int fn_on;
+    DECLARE_BITMAP(pressed_fn, KEY_CNT);
+
+    struct list_head m_list_head;
+};
+
 struct razer_kbd_device {
     struct usb_device *usb_dev;
     struct mutex lock;
     unsigned char usb_interface_protocol;
     unsigned short usb_vid;
     unsigned short usb_pid;
-
-    unsigned int fn_on;
-    DECLARE_BITMAP(pressed_fn, KEY_CNT);
 
     unsigned char block_keys[3];
     unsigned char left_alt_on;
