@@ -567,7 +567,6 @@ class RazerHuntsmanV2Analog(_RazerDeviceBrightnessSuspend):
     DEVICE_IMAGE = "https://dl.razerzone.com/src/4023-1-EN-v1.png"
 
 
-# TODO Remove setting to device mode once analog keys are supported
 class RazerHuntsmanV3Pro(_RazerDeviceBrightnessSuspend):
     """
     Class for the Razer Huntsman V3 Pro
@@ -598,9 +597,8 @@ class RazerHuntsmanV3Pro(_RazerDeviceBrightnessSuspend):
         super()._close()
         self.key_manager.close()
 
+
 # TODO Should become _RippleKeyboard once kernel support for driver mode is implemented
-
-
 class RazerHuntsmanMiniAnalog(_RazerDeviceBrightnessSuspend):
     """
     Class for the Razer Huntsman Mini Analog
