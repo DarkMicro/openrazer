@@ -567,6 +567,37 @@ class RazerHuntsmanV2Analog(_RazerDeviceBrightnessSuspend):
     DEVICE_IMAGE = "https://dl.razerzone.com/src/4023-1-EN-v1.png"
 
 
+class RazerHuntsmanV3Pro(_RazerDeviceBrightnessSuspend):
+    """
+    Class for the Razer Huntsman V3 Pro
+    """
+    EVENT_FILE_REGEX = re.compile(r'.*Razer_Huntsman_V3_Pro(-if01)?-event-kbd')
+
+    USB_VID = 0x1532
+    USB_PID = 0x02A6
+    HAS_MATRIX = True
+    MATRIX_DIMS = [6, 22]
+    # TODO Remove get_keyboard_layout once not _RazerDeviceBrightnessSuspend anymore
+    METHODS = ['get_device_type_keyboard', 'set_wave_effect', 'set_static_effect', 'set_spectrum_effect',
+               'set_reactive_effect', 'set_none_effect', 'set_breath_random_effect', 'set_breath_single_effect', 'set_breath_dual_effect',
+               'set_starlight_random_effect', 'set_starlight_single_effect', 'set_starlight_dual_effect',
+               'get_macro_mode', 'set_macro_mode', 'get_macro_effect', 'set_macro_effect',
+               'get_game_mode', 'set_game_mode', 'set_custom_effect', 'set_key_row', 'get_keyboard_layout']
+
+    DEVICE_IMAGE = "https://dl.razerzone.com/src2/13671/13671-1-en-v2.png"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.key_manager = _KeyboardKeyManager(self._device_number, self.event_files, self, use_epoll=True, testing=self._testing)
+
+    def _close(self):
+        """
+        Close the key manager
+        """
+        super()._close()
+        self.key_manager.close()
+
+
 # TODO Should become _RippleKeyboard once kernel support for driver mode is implemented
 class RazerHuntsmanMiniAnalog(_RazerDeviceBrightnessSuspend):
     """
@@ -1606,6 +1637,21 @@ class RazerBladeEarly2020Base(_MacroKeyboard):
                'set_breath_dual_effect']
 
     DEVICE_IMAGE = "https://assets2.razerzone.com/images/blade-15/blade-15-base-model-spec-image-v2.png"
+
+
+class RazerBladeLate2020Base(_MacroKeyboard):
+    """
+    Class for the Razer Blade Late 2020 Base
+    """
+    EVENT_FILE_REGEX = re.compile(r'.*Razer_Blade(-if01)?-event-kbd')
+
+    USB_VID = 0x1532
+    USB_PID = 0x0268
+    METHODS = ['get_device_type_keyboard', 'set_static_effect', 'set_spectrum_effect',
+               'set_reactive_effect', 'set_none_effect', 'set_breath_random_effect', 'set_breath_single_effect',
+               'set_breath_dual_effect']
+
+    DEVICE_IMAGE = "https://assets2.razerzone.com/images/blade-15/shop/blade15-base-model-spec-image-v2.png"
 
 
 class RazerBladeProLate2019(_RippleKeyboard):
