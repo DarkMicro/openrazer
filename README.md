@@ -80,6 +80,7 @@ The devices below are fully feature supported by OpenRazer, which means all avai
 | Razer Ornata V2                               |  1532:025D  |
 | Razer Cynosa V2                               |  1532:025E  |
 | Razer Huntsman V2 Analog                      |  1532:0266  |
+| Razer Blade 15 Base (Late 2020)               |  1532:0268  |
 | Razer Huntsman Mini (JP)                      |  1532:0269  |
 | Razer Book 13 (2020)                          |  1532:026A  |
 | Razer Huntsman V2 TKL                         |  1532:026B  |
@@ -116,6 +117,7 @@ The devices below are fully feature supported by OpenRazer, which means all avai
 | Razer BlackWidow V4 75%                       |  1532:02A5  |
 | Razer Huntsman V3 Pro                         |  1532:02A6  |
 | Razer Blade 14 (2024)                         |  1532:02B6  |
+| Razer Blade 18 (2024)                         |  1532:02B8  |
 | Razer BlackWidow V3 Tenkeyless                |  1532:0A24  |
 
 ### Mice
@@ -219,6 +221,7 @@ The devices below are fully feature supported by OpenRazer, which means all avai
 | Razer DeathAdder V3 Pro (Wireless)            |  1532:00C3  |
 | Razer DeathAdder V3 HyperSpeed (Wired)        |  1532:00C4  |
 | Razer DeathAdder V3 HyperSpeed (Wireless)     |  1532:00C5  |
+| Razer Basilisk V3 35K                         |  1532:00CB  |
 | Razer Basilisk V3 Pro 35K (Wired)             |  1532:00CC  |
 | Razer Basilisk V3 Pro 35K (Wireless)          |  1532:00CD  |
 
