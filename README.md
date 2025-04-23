@@ -204,6 +204,8 @@ The devices below are fully feature supported by OpenRazer, which means all avai
 | Razer Cobra                                   |  1532:00A3  |
 | Razer Viper V2 Pro (Wired)                    |  1532:00A5  |
 | Razer Viper V2 Pro (Wireless)                 |  1532:00A6  |
+| Razer Naga V2 Pro (Wired)                     |  1532:00A7  |
+| Razer Naga V2 Pro (Wireless)                  |  1532:00A8  |
 | Razer Basilisk V3 Pro (Wired)                 |  1532:00AA  |
 | Razer Basilisk V3 Pro (Wireless)              |  1532:00AB  |
 | Razer Cobra Pro (Wired)                       |  1532:00AF  |
@@ -243,6 +245,7 @@ The devices below are fully feature supported by OpenRazer, which means all avai
 | Razer Kraken 7.1                              |  1532:0506  |
 | Razer Kraken 7.1 V2                           |  1532:0510  |
 | Razer Kraken Ultimate                         |  1532:0527  |
+| Razer Kraken Kitty Edition V2                 |  1532:0560  |
 | Razer Kraken Kitty Edition                    |  1532:0F19  |
 
 ### Misc
